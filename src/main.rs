@@ -20,8 +20,7 @@ error_chain!{
     }
 }
 
-// For templating
-use tera::{Context,Tera};
+use tera::Tera;
 
 mod templates;
 mod fetch;
@@ -38,31 +37,14 @@ struct Cli {
 
 fn build_gopher_section(stories: &Vec<Story>, tera: &Tera) -> Result<()> {
     let mut f = File::create("gophermap")?;
-    //let gophermap = stories_to_gophermap(stories);
-    let mut context = Context::new();
-    context.insert("stories", stories);
-    let contents = match tera.render("gopher/section", &context) {
-        Ok(s) => s,
-        Err(e) => {
-            println!("Building the template failed because of error\n{:#?}", e);
-            // Silently discard the error
-            return Ok(());
-        }
-    };
-
+    let contents = templates::build_template("gopher/section", vec![("stories", stories)], tera)?;
     f.write_all(&contents.as_bytes())?;
     Ok(())
 }
 
 fn build_gopher_article(story: &Story, tera: &Tera) -> Result<()> {
     let mut f = File::create(format!("{}.txt", story.id))?;
-    //let coms = build_comments_page(story);
-    let mut context = Context::new();
-    context.insert("story", story);
-    let contents = match tera.render("gopher/article", &context) {
-        Ok(s) => s,
-        Err(e) => { println!("Tera failed because of error\n{:?}", e); return Ok(()); }
-    };
+    let contents = templates::build_template("gopher/article", vec![("story", story)], tera)?;
     f.write_all(&contents.as_bytes())?;
     Ok(())
 }
