@@ -9,7 +9,7 @@ pub struct Story {
     pub title: String,
     #[serde(rename(deserialize = "created_at"))]
     pub date: DateTime<Utc>,
-    pub score: u8,
+    pub score: i8,
     #[serde(rename(deserialize = "comment_count"))]
     pub count: u8,
     #[serde(rename(deserialize = "short_id"))]
@@ -56,7 +56,7 @@ pub struct Comment {
     pub text: String,
     #[serde(rename(deserialize = "created_at"))]
     pub date: Date,
-    pub score: u8,
+    pub score: i8,
     #[serde(rename(deserialize = "indent_level"))]
     pub indentation: u8,
     #[serde(rename(deserialize = "commenting_user"))]
