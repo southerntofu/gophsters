@@ -1,22 +1,9 @@
-// #![deny(warnings)]
-extern crate hyper;
-extern crate hyper_tls;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde;
-extern crate serde_json;
-
-extern crate chrono;
 use chrono::prelude::*;
-
-extern crate regex;
 use regex::Regex;
-
-extern crate textwrap;
 use textwrap::{fill, indent};
-
-extern crate deunicode;
 use deunicode::deunicode;
+use serde::Deserialize;
+use structopt::StructOpt;
 
 use std::fs::File;
 use std::io::prelude::*;
@@ -24,11 +11,25 @@ use std::io::prelude::*;
 use hyper::Client;
 use hyper::rt::{self, Future, Stream};
 use hyper_tls::HttpsConnector;
+use url::Url;
 
-const API_URL: &'static str = "https://lobste.rs/hottest.json";
+#[derive(Debug, StructOpt)]
+#[structopt(name = "gophsters", about = "Generate a gophermap from lobste.rs recent stories")]
+struct Cli {
+    /// The host to fetch Lobsters articles from
+    #[structopt(short = "h", long = "host", default_value = "lobste.rs")]
+    host: String,
+    // The folder 
+}
 
 fn main() {
-    let url = API_URL.parse().unwrap();
+    let cli = Cli::from_args();
+
+    let host = if cli.host.starts_with("http") { cli.host } else { format!("https://{}", cli.host) };
+
+    let base_url = Url::parse(&host).expect("Could not parse hostname");
+    // join() doesn't care about a trailing slash passed as host
+    let url = base_url.join("hottest.json").unwrap().as_str().parse().unwrap();
 
     let fut = fetch_stories(url)
         .map(|stories| {
@@ -67,8 +68,7 @@ fn stories_to_gophermap(stories: Vec<Story>) -> String {
         let story_line = if story_has_url {
             format!("h[{}] - {}\tURL:{}\n", story.score, deunicode(&story.title), story.short_id_url)
         } else {
-            let re = Regex::new(r"^https").unwrap();
-            let story_url = re.replace_all(&story.url, "http");
+            let story_url = if story.url.starts_with("https") { story.url.replacen("https", "http", 1) } else { story.url.clone() };
             format!("h[{}] - {}\tURL:{}\n", story.score, deunicode(&story.title), story_url)
         };
 
@@ -175,7 +175,7 @@ Viewing comments for \"{}\"
 ", deunicode(&story.title))
 }
 
-fn pretty_date(date_string: &String) -> String {
+fn pretty_date(date_string: &str) -> String {
     let parsed_date = date_string.parse::<DateTime<Utc>>();
     let date = match parsed_date {
         Ok(date) => date,
@@ -227,7 +227,7 @@ fn fetch_comments(url: hyper::Uri) -> impl Future<Item=(Vec<Comment>, String), E
 struct Story {
     title: String,
     created_at: String,
-    score: u8,
+    score: i8,
     comment_count: u8,
     short_id: String,
     short_id_url: String,
@@ -251,7 +251,7 @@ struct CommentRoot {
 struct Comment {
     comment: String,
     created_at: String,
-    score: u8,
+    score: i8,
     indent_level: u8,
     commenting_user: User,
 }
